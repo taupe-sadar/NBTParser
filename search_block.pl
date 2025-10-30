@@ -126,8 +126,7 @@ sub nbt_parser
     
     my($path_for_c)=$path =~s/ /\\ /gr;
     my($command)="./nbt_parser search $path_for_c minecraft:$block_type $chunk_list $limit";
-    # print "r.$x.$z.mca\n";
-    print "$command\n";
+    # print "$command\n";
     # <STDIN>;
     open(NBT_PARSER, "$command |") or die "Cannot launch nbt_parser";
     my($line)="";
