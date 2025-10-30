@@ -25,7 +25,7 @@ sub read_conf
 {
   my($file)=@_;
   my(%config)=();
-  open(CONF, "$file") or die "Cannot launch nbt_parser";
+  open(CONF, "$file") or die "Cannot open $file";
   my(@lines)=(<CONF>);
   for my $line (@lines)
   {

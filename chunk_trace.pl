@@ -4,23 +4,12 @@ use Data::Dumper;
 use List::Util qw(min max);
 use POSIX;
 
-#My House ^^
-# my($save_dir)='/cygdrive/c/Users/Remi/AppData/Roaming/.minecraft/saves/Comme la demo';
-# my($dimension)="normal";
-# my(@start_block)=(-577,68,-687);
-# my(@size)=(45,26,45);
+my($config)= read_conf("confs/chunk_trace.conf");
 
-#Bastion
-# my($save_dir)='/cygdrive/c/Users/Remi/AppData/Roaming/.minecraft/saves/Comme la demo';
-# my($dimension)="nether";
-# my(@start_block)=(307,30,609);
-# my(@size)=(32,40,20);
-
-my($save_dir)='/cygdrive/c/Users/Remi/AppData/Roaming/.minecraft/saves/Comme la demo';
-# my($save_dir)='/cygdrive/c/Users/Remi/AppData/Roaming/.minecraft/saves/Edit creatif';
-my($dimension)="nether";
-my(@center_block)=(1063,69,-737);
-my(@size)=(5,5,8);
+my($save_dir)=$$config{'args'}{'save_dir'};
+my($dimension)=$$config{'args'}{'dimension'};
+my(@center_block)=split(',',$$config{'args'}{'center_block'});
+my(@size)=split(',',$$config{'args'}{'size'});
 
 # print Dumper \@ARGV;<STDIN>;
 
@@ -41,9 +30,6 @@ my(@start_block)=(
   $center_block[2]-int($size[2]/2)
 );
 
-my($output)=1;
-
-my($config)= read_conf("confs/chunk_trace.conf");
 my($legend)=$$config{"legend"};
 
 my(%only_show)=(
@@ -159,30 +145,27 @@ foreach my $b (sort(keys(%$legend)))
   }
 }
 
-if($output)
+my($left_m)=5;
+for(my($y)=0;$y<$num_levels;$y++)
 {
-  my($left_m)=5;
-  for(my($y)=0;$y<$num_levels;$y++)
+  print "-"x(($#{$regions_strings[$y]}+1)*2)."\n";
+  print "Level ".($start_block[1]+$y)."\n" ;
+  my(@xlines)=xlabel($start_block[0],$size[0],$left_m);
+  print $xlines[0]."\n";
+  print $xlines[1]."\n";
+  for(my($z)=0;$z<=$#{$regions_strings[$y]};$z++)
   {
-    print "-"x(($#{$regions_strings[$y]}+1)*2)."\n";
-    print "Level ".($start_block[1]+$y)."\n" ;
-    my(@xlines)=xlabel($start_block[0],$size[0],$left_m);
-    print $xlines[0]."\n";
-    print $xlines[1]."\n";
-    for(my($z)=0;$z<=$#{$regions_strings[$y]};$z++)
+    my($zcoord)=$start_block[2]+$z;
+    my($zstr)="";
+    if($zcoord%10 == 0)
     {
-      my($zcoord)=$start_block[2]+$z;
-      my($zstr)="";
-      if($zcoord%10 == 0)
-      {
-        $zstr = sprintf("%${left_m}s",$zcoord);
-      }
-      else
-      {
-        $zstr = ' 'x$left_m;
-      }
-      print "$zstr $regions_strings[$y][$z]\n";
+      $zstr = sprintf("%${left_m}s",$zcoord);
     }
+    else
+    {
+      $zstr = ' 'x$left_m;
+    }
+    print "$zstr $regions_strings[$y][$z]\n";
   }
 }
 
@@ -225,8 +208,7 @@ sub nbt_parser
     my($command)="./nbt_parser chunk_blocks $path_for_c $ymin $ymax $chunk_list";
     # print "$command\n";
     # <STDIN>;
-    # system($command);
-    # return [];
+
     open(NBT_PARSER, "$command |") or die "Cannot launch nbt_parser";
     my($line)="";
     my($chunk_lines)=$ymax - $ymin + 1;
@@ -248,6 +230,7 @@ sub nbt_parser
         }
       }
     }
+    close(NBT_PARSER);
   }
   else
   {
@@ -324,7 +307,7 @@ sub read_conf
 {
   my($file)=@_;
   my(%config)=("legend"=>{});
-  open(CONF, "$file") or die "Cannot launch nbt_parser";
+  open(CONF, "$file") or die "Cannot open $file";
   my(@lines)=(<CONF>);
   for my $line (@lines)
   {
@@ -335,7 +318,7 @@ sub read_conf
       my($entry,$value)=($1,$2);
       if($entry =~m/^(.*):(.*)$/)
       {
-        if($1 eq 'legend')
+        if($1 eq 'legend' || $1 eq 'args')
         {
           $config{$1}{$2} = $value;
         }

@@ -16,4 +16,5 @@ void parse_chunks(std::string const & filename, std::vector<Chunk> & chunks);
 void parse_gzip_nbt(std::string const & filename, std::unique_ptr<Tag>& tag);
 
 std::vector<std::string> block_layers(std::vector<Chunk> const & chunks, int minHeight, int MaxHeight);
+std::vector<std::string> block_search(std::vector<Chunk> const & chunks, std::string const & blockType, int limit);
 

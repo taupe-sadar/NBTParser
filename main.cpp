@@ -10,7 +10,7 @@ int main(int argc, char** argv)
     if(argc <= 1)
     {
       std::cout << "Usage : nbt_parser <mode> " << std::endl;
-      std::cout << "  Modes : chunk_blocks|map" << std::endl;
+      std::cout << "  Modes : chunk_blocks|map|search" << std::endl;
       return 1;
     }
     
@@ -27,7 +27,6 @@ int main(int argc, char** argv)
       int minHeight = std::stoi(argv[arg_idx++]);
       int maxHeight = std::stoi(argv[arg_idx++]);
       
-      
       while(argc >= arg_idx + 2)
       {
         int x = std::stoi(argv[arg_idx++]);
@@ -42,6 +41,41 @@ int main(int argc, char** argv)
       
       std::vector<std::string> ret = block_layers(chunks,minHeight,maxHeight);
       for(auto & s : ret)
+      {
+        std::cout << s << std::endl;
+      }
+    }
+    else if( mode == "search" )
+    {
+      if(argc <= 3)
+      {
+        std::cout << "Usage : nbt_parser search <filename> <block_type> [(chunk_x chunk_z) ...] [<limit>]" << std::endl;
+        return 1;
+      }
+      
+      std::string file(argv[arg_idx++]);
+      
+      std::string blockType(argv[arg_idx++]);
+      
+      std::vector<Chunk> chunks;
+      while(argc >= arg_idx + 2)
+      {
+        int x = std::stoi(argv[arg_idx++]);
+        int z = std::stoi(argv[arg_idx++]);
+        if( x < 0 || x >=32 || z < 0 || z >= 32 )
+          throw std::runtime_error("Coordinates must be in [0:31]");
+        
+        chunks.push_back(Chunk(x,z));
+      }
+
+      int limit = -1;
+      if( arg_idx < argc )
+        limit = std::stoi(argv[arg_idx++]);
+
+      parse_chunks(file,chunks);
+
+      std::vector<std::string> ret = block_search(chunks,blockType,limit);
+       for(auto & s : ret)
       {
         std::cout << s << std::endl;
       }

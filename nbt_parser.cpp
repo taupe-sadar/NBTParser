@@ -2,6 +2,7 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include <functional>
 
 #include <bitset>
 
@@ -102,31 +103,49 @@ int bitBlockCoding(int numPaletteElts)
     return bits;
 }
 
-std::vector<std::string> chunkBlocks(std::vector<long> const & allBlocks, std::map<int,int> const & sectionMapping)
+struct SectionProcessor
 {
-  int bits = bitBlockCoding(sectionMapping.size()); 
-  long mask = (1 << bits) - 1;
-  
-  std::vector<std::string> ret;
-  std::string current;
-  int count = 0;
-  for(long lineBlocks : allBlocks)
+  SectionProcessor(int _mappingSize, std::function<void(int,long)> _f):mappingSize(_mappingSize),f(_f){}
+  void process(std::vector<long> const & blocks)
   {
-    int bitsRemaining = 64;
-    while(bitsRemaining >= bits)
+    int count = 0;
+    int bits = bitBlockCoding(mappingSize);
+    long mask = (1 << bits) - 1;
+
+    for(long lineBlocks : blocks)
     {
-      current += std::to_string( sectionMapping.at(lineBlocks & mask) ) + " ";
-      count++;
-      if( count == 256 )
+      int bitsRemaining = 64;
+      while(bitsRemaining >= bits)
       {
-        ret.push_back(current);
-        current.clear();
-        count = 0;
+        f(count++,lineBlocks & mask);
+        lineBlocks >>= bits;
+        bitsRemaining -= bits;
       }
-      lineBlocks >>= bits;
-      bitsRemaining -= bits;
     }
   }
+
+private:
+  const int mappingSize;
+  std::function<void(int,long)> const f;
+};
+
+std::vector<std::string> chunkBlocks(std::vector<long> const & allBlocks, std::map<int,int> const & sectionMapping)
+{
+  std::vector<std::string> ret;
+  std::string current;
+   
+  auto fn = [&](int idx, long val){
+
+    current += std::to_string( sectionMapping.at(val) ) + " ";
+    if( (idx % 256) == 255 )
+    {
+      ret.push_back(current);
+      current.clear();
+    }
+  };
+  
+  SectionProcessor processor(sectionMapping.size(),fn);
+  processor.process(allBlocks);
   return ret;
 }
 
@@ -231,3 +250,59 @@ std::vector<std::string> block_layers(std::vector<Chunk> const & chunks, int min
   return v;
 }
 
+std::vector<std::string> block_search(std::vector<Chunk> const & chunks, std::string const & blockType, int limit)
+{
+  std::vector<std::string> v(1);
+  int count = 0;
+  for(auto const & chunk : chunks)
+  {
+    const Tag* tagSections = getElement(chunk.tag.get(),"Level/Sections");
+  
+    int numSections = tagSections->size();
+    for(int i = 0; i < numSections ; i ++)
+    {
+      const Tag* tagSection = getElement(tagSections,std::to_string(i));
+      int YPos = getElement(tagSection,"Y")->getByte();
+      std::set<std::string> elts = tagSection->elements();
+      if(elts.count("Palette") == 0)
+        continue;
+
+      const Tag* tagPalette = getElement(tagSection,"Palette");
+      int numPaletteElts = tagPalette->size();
+      std::set<int> valuesLookedFor;
+      for(int p = 0; p < numPaletteElts ; p ++)
+      {
+        if( getElement(tagPalette,std::to_string(p)+"/Name")->getString() == blockType )
+          valuesLookedFor.insert(p);
+      }
+      
+      // std::cout << "--- Section : " << i << " ---" << std::endl;
+      // std::cout << "Section : " << i << " : " << tagPalette->str(0) << std::endl;
+
+      if(valuesLookedFor.size() == 0) 
+        continue;
+
+      std::vector<long> allBlocks = getElement(tagSection,"BlockStates")->getLongArray();
+      auto fn = [&](int idx, long val){
+        
+        if( valuesLookedFor.count(val) > 0 )
+        {
+          if( limit < 0 || count < limit )
+          {
+            int y = idx/256;
+            int layer = idx%256;
+            int x = layer%16;
+            int z = layer/16;
+
+            v.push_back(std::to_string(x + chunk.x*16) + " " + std::to_string(y + YPos*16) + " " + std::to_string(z + chunk.z*16));
+          }
+          count++;
+        }
+      };
+      SectionProcessor processor(numPaletteElts,fn);
+      processor.process(allBlocks);
+    }
+  }
+  v[0]=std::to_string(count);
+  return v;
+}
