@@ -46,21 +46,16 @@ void parse_chunks(std::string const & filename, std::vector<Chunk> & chunks)
     
     std::string serr("Chunk[" + std::to_string(c.x) + "," + std::to_string(c.z) + "]");
     if( length <= 1 )
-    {
-      throw std::runtime_error(serr + " : Unexpected length " + std::to_string(length));
-    }
+      continue;
+
     if( compression != 2 )
-    {
       throw std::runtime_error(serr + " : Unexpected compression " + std::to_string(compression));
-    }
     
     std::vector<char> data(length-1);
     ifs.read(data.data(),length-1);
     std::vector<unsigned char> nbtBuffer;
     if(!zlib_decode((unsigned char * )data.data(), length-1, nbtBuffer))
-    {
       throw std::runtime_error(serr + " : zlib_decode failed");
-    }
 
     c.tag = std::move(nbt_parse(nbtBuffer));
   }
@@ -234,12 +229,22 @@ std::vector<std::string> block_layers(std::unique_ptr<Tag> const & tag, int minH
 
 std::vector<std::string> block_layers(std::vector<Chunk> const & chunks, int minHeight, int maxHeight)
 {
-  std::map<std::string,int> allBlockTypes{{"minecraft:air",0}};
   std::vector<std::string> v;
+  if( minHeight > maxHeight )
+    return v;
+
+  std::map<std::string,int> allBlockTypes{{"minecraft:air",0}};
   for(auto const & chunk : chunks)
   {
-    std::vector<std::string> chunk_v = block_layers(chunk.tag,minHeight,maxHeight,allBlockTypes);
-    v.insert(v.end(),chunk_v.begin(),chunk_v.end());
+    if( chunk.tag.get() == nullptr )
+    {
+      v.resize(v.size() + maxHeight - minHeight + 1, emptyLayer());
+    }
+    else
+    {
+      std::vector<std::string> chunk_v = block_layers(chunk.tag,minHeight,maxHeight,allBlockTypes);
+      v.insert(v.end(),chunk_v.begin(),chunk_v.end());
+    }
   }
 
   std::vector<std::string> vectorTypes(allBlockTypes.size());
@@ -256,6 +261,9 @@ std::vector<std::string> block_search(std::vector<Chunk> const & chunks, std::st
   int count = 0;
   for(auto const & chunk : chunks)
   {
+    if(chunk.tag.get() == nullptr)
+      continue;
+
     const Tag* tagSections = getElement(chunk.tag.get(),"Level/Sections");
   
     int numSections = tagSections->size();

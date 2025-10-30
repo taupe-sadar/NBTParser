@@ -75,7 +75,7 @@ int main(int argc, char** argv)
       parse_chunks(file,chunks);
 
       std::vector<std::string> ret = block_search(chunks,blockType,limit);
-       for(auto & s : ret)
+      for(auto & s : ret)
       {
         std::cout << s << std::endl;
       }
@@ -110,6 +110,7 @@ int main(int argc, char** argv)
   catch(std::exception const& e)
   {
     std::cout << "Error : " << e.what() << std::endl;
+    std::cerr << "Error : " << e.what() << std::endl;
     return 1;
   }
   std::vector<Chunk> chunks;
